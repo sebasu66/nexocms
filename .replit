@@ -1,0 +1,9 @@
+entrypoint = "server/index.ts"
+run = "npm run mcp:dev"
+
+[deployment]
+run = ["npm", "run", "mcp:dev"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80
