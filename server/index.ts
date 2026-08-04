@@ -8,6 +8,95 @@ import { demoAssets, demoOperations, statusLabel, type DemoOperation } from "./d
 
 type ToolExtra = { requestInfo?: { headers?: Record<string, string | string[] | undefined> } };
 
+const REMITOS_WIDGET_URI = "ui://widget/remitos.html";
+
+const remitosWidgetHtml = String.raw\`
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1f2d28;background:#fff}
+*{box-sizing:border-box}body{margin:0;padding:14px;background:linear-gradient(145deg,#f7faf8,#fff)}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.kicker{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#4e806a;font-weight:700}
+h1{font-size:18px;margin:3px 0 0;letter-spacing:-.02em}
+.count{font-size:11px;color:#71817a;background:#edf5f0;padding:5px 8px;border-radius:999px}
+.grid{display:grid;gap:9px}
+.card{border:1px solid #e0e9e3;border-radius:12px;background:#fff;padding:12px;box-shadow:0 3px 12px #214d3510}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.number{font-weight:750;font-size:13px;color:#176b52}
+.customer{font-size:12px;font-weight:650;margin-top:4px}
+.asset{font-size:11px;color:#64756d;margin-top:3px}
+.status{white-space:nowrap;border-radius:999px;padding:4px 7px;font-size:9px;font-weight:700;background:#edf5f0;color:#287658}
+.status.return_due{background:#fff1df;color:#a76222}.status.returned{background:#eef1ef;color:#64736c}.status.draft{background:#edf1f8;color:#526d97}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid #edf1ee}
+.meta span{display:block;font-size:9px;color:#8a9790;text-transform:uppercase;letter-spacing:.04em}
+.meta strong{display:block;font-size:10px;color:#42524b;margin-top:2px;font-weight:650}
+.actions{display:flex;gap:7px;margin-top:11px}
+button{border:0;border-radius:8px;padding:7px 9px;font:inherit;font-size:10px;font-weight:700;cursor:pointer}
+.detail{color:#fff;background:#176b52}.ask{color:#286b53;background:#edf6f1}
+.empty{padding:20px;text-align:center;color:#71817a;font-size:12px;border:1px dashed #d6e2da;border-radius:10px}
+</style>
+</head>
+<body>
+<div class="header"><div><div class="kicker">Nexo · trazabilidad</div><h1>Remitos encontrados</h1></div><div id="count" class="count">0</div></div>
+<div id="grid" class="grid"><div class="empty">Esperando datos…</div></div>
+<script>
+const pending=new Map();let nextId=1;let latest=null;
+function bridge(method,params){
+  const id=nextId++;
+  window.parent.postMessage({jsonrpc:"2.0",id,method,params},"*");
+  return new Promise((resolve,reject)=>pending.set(id,{resolve,reject}));
+}
+function esc(value){
+  return String(value??"").replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+}
+function date(value){if(!value)return "—";try{return new Date(value).toLocaleDateString("es-AR",{day:"2-digit",month:"short"})}catch{return value}}
+function render(data){
+  latest=data||{remitos:[]};
+  const rows=Array.isArray(latest.remitos)?latest.remitos:[];
+  document.getElementById("count").textContent=rows.length+" "+(rows.length===1?"registro":"registros");
+  const grid=document.getElementById("grid");
+  if(!rows.length){grid.innerHTML='<div class="empty">No hay remitos para mostrar.</div>';return}
+  grid.innerHTML=rows.map((item,index)=>{
+    const state=String(item.status||"").replaceAll(" ","_");
+    return '<article class="card">'+
+      '<div class="card-top"><div><div class="number">'+esc(item.number)+'</div><div class="customer">'+esc(item.customer)+'</div><div class="asset">'+esc(item.asset)+'</div></div>'+
+      '<span class="status '+esc(state)+'">'+esc(item.status)+'</span></div>'+
+      '<div class="meta"><div><span>Retiro previsto</span><strong>'+date(item.dueAt)+'</strong></div><div><span>Identificador</span><strong>'+esc(item.id)+'</strong></div></div>'+
+      '<div class="actions"><button class="detail" data-index="'+index+'">Ver detalle</button><button class="ask" data-number="'+esc(item.number)+'">Preguntar</button></div>'+
+      '</article>';
+  }).join("");
+  grid.querySelectorAll(".detail").forEach((button)=>button.addEventListener("click",async()=>{
+    const item=rows[Number(button.dataset.index)];
+    button.disabled=true;button.textContent="Cargando…";
+    try{
+      const result=await bridge("tools/call",{name:"get_remito",arguments:{id:item.id}});
+      const detail=result?.structuredContent?.remito;
+      if(detail){render({remitos:[{...item,...detail,customer:detail.customer,asset:detail.asset,status:detail.status}]});}
+    }finally{button.disabled=false}
+  }));
+  grid.querySelectorAll(".ask").forEach((button)=>button.addEventListener("click",()=>{
+    bridge("ui/message",{content:[{type:"text",text:"Dame más información del remito "+button.dataset.number}]}).catch(()=>{});
+  }));
+}
+window.addEventListener("message",(event)=>{
+  if(event.source!==window.parent)return;
+  const message=event.data;
+  if(!message||message.jsonrpc!=="2.0")return;
+  if(message.id!==undefined&&pending.has(message.id)){const item=pending.get(message.id);pending.delete(message.id);message.error?item.reject(message.error):item.resolve(message.result);return}
+  if(message.method==="ui/notifications/tool-result")render(message.params?.structuredContent);
+});
+if(window.openai?.toolOutput)render(window.openai.toolOutput);
+bridge("ui/initialize",{capabilities:{},clientInfo:{name:"nexo-remitos-widget",version:"0.1.0"}}).catch(()=>{});
+</script>
+</body>
+</html>
+\`.trim();
+
+
 function requestToken(extra: ToolExtra): string | null {
   const authorization = extra.requestInfo?.headers?.authorization;
   return bearerToken(typeof authorization === "string" ? authorization : undefined);
@@ -78,6 +167,22 @@ function createServer() {
     { instructions: "Nexo gives authorized, read-only operational information. Use search or list_remitos to locate records, then fetch or get_remito for detail. Never infer access to another organization; the server enforces tenant permissions." },
   );
 
+
+  server.registerResource("remitos-widget", REMITOS_WIDGET_URI, {}, async () => ({
+    contents: [{
+      uri: REMITOS_WIDGET_URI,
+      mimeType: "text/html;profile=mcp-app",
+      text: remitosWidgetHtml,
+      _meta: {
+        ui: {
+          prefersBorder: true,
+          csp: { connectDomains: [], resourceDomains: [] },
+        },
+        "openai/widgetDescription": "Tarjetas interactivas de remitos de Nexo con acceso al detalle.",
+      },
+    }],
+  }));
+
   server.registerTool("search", {
     title: "Buscar en Nexo",
     description: "Use this when the user wants to find remitos, cajas de instrumental o instituciones en Nexo. Returns citation-ready result identifiers.",
@@ -144,6 +249,42 @@ function createServer() {
       return { structuredContent: { remito }, content: [{ type: "text" as const, text: `${operation.number} está ${statusLabel(operation.status)}.` }] };
     } catch (error) { return errorResult(error instanceof Error ? error.message : "Could not get remito."); }
   });
+
+
+  server.registerTool("render_remitos_widget", {
+    title: "Mostrar remitos como tarjetas",
+    description: "Use this after list_remitos when the user needs a visual list of remitos. Pass the remitos returned by list_remitos; this tool only renders the prepared data and does not query the database.",
+    inputSchema: {
+      remitos: z.array(z.object({
+        id: z.string(),
+        number: z.string(),
+        customer: z.string(),
+        asset: z.string(),
+        status: z.string(),
+        dueAt: z.string().nullable(),
+      })).max(50),
+    },
+    outputSchema: {
+      remitos: z.array(z.object({
+        id: z.string(),
+        number: z.string(),
+        customer: z.string(),
+        asset: z.string(),
+        status: z.string(),
+        dueAt: z.string().nullable(),
+      })),
+    },
+    _meta: {
+      ui: { resourceUri: REMITOS_WIDGET_URI },
+      "openai/outputTemplate": REMITOS_WIDGET_URI,
+      "openai/toolInvocation/invoking": "Preparando tarjetas…",
+      "openai/toolInvocation/invoked": "Tarjetas listas.",
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
+  }, async ({ remitos }) => ({
+    structuredContent: { remitos },
+    content: [{ type: "text" as const, text: `Se muestran ${remitos.length} remitos en una interfaz interactiva.` }],
+  }));
 
   return server;
 }
