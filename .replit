@@ -7,7 +7,7 @@ channel = "stable-25_05"
 [userenv.shared]
 MCP_PORT = "3000"
 NEXO_APP_URL = "http://localhost:5173"
-NEXO_MCP_DEMO_MODE = "false"
+NEXO_MCP_DEMO_MODE = "true"
 SUPABASE_URL = "https://yzqichzpmzzabwmwtkpq.supabase.co"
 VITE_DEMO_MODE = "false"
 VITE_SUPABASE_URL = "https://yzqichzpmzzabwmwtkpq.supabase.co"
@@ -59,3 +59,7 @@ externalPort = 3001
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3002
