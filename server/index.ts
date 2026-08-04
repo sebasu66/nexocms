@@ -10,7 +10,7 @@ type ToolExtra = { requestInfo?: { headers?: Record<string, string | string[] | 
 
 const REMITOS_WIDGET_URI = "ui://widget/remitos.html";
 
-const remitosWidgetHtml = String.raw\`
+const remitosWidgetHtml = String.raw`
 <!doctype html>
 <html lang="es">
 <head>
@@ -94,7 +94,7 @@ bridge("ui/initialize",{capabilities:{},clientInfo:{name:"nexo-remitos-widget",v
 </script>
 </body>
 </html>
-\`.trim();
+`.trim();
 
 
 function requestToken(extra: ToolExtra): string | null {
