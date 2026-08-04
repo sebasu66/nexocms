@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export const config = {
-  port: Number(process.env.MCP_PORT ?? 3000),
+  port: Number(process.env.PORT ?? process.env.MCP_PORT ?? 3000),
   demoMode: process.env.NEXO_MCP_DEMO_MODE !== "false",
   supabaseUrl: process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL,
   supabaseKey: process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
