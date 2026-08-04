@@ -1,2 +1,41 @@
+modules = ["nodejs-20"]
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+MCP_PORT = "3000"
+NEXO_APP_URL = "http://localhost:5173"
+NEXO_MCP_DEMO_MODE = "false"
+SUPABASE_URL = "https://yzqichzpmzzabwmwtkpq.supabase.co"
+VITE_DEMO_MODE = "false"
+VITE_SUPABASE_URL = "https://yzqichzpmzzabwmwtkpq.supabase.co"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
