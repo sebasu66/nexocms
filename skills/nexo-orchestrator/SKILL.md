@@ -125,6 +125,7 @@ The existing `nexocms` repo uses `@modelcontextprotocol/sdk`, Express, Streamabl
 - Local verification passed: `npm run typecheck`, `wrangler deploy --dry-run`, `GET /health`, MCP `initialize`, `tools/list`, and `tools/call` for `nexo_status`.
 - CI now uses the generated lockfile via `npm ci` and verifies `nexo_status` from the deployed `/mcp` endpoint after `/health`.
 - Production deployment remains blocked only on securely configured `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; never request or store them in chat/repository.
+- Successful first deployment URL: `https://nexo-mcp-core-poc.sebastianurciuolo.workers.dev`. The endpoint served `/health` after TLS propagation. CI must use `curl --retry-all-errors` because a just-created `workers.dev` certificate can briefly reject the first TLS handshake.
 
 ## Continuation checklist
 When resuming work:
