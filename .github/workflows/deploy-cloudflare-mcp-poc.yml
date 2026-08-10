@@ -29,7 +29,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: npm ci --ignore-scripts
 
       - name: Typecheck
         run: npm run typecheck
@@ -49,3 +49,15 @@ jobs:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
         run: |
           curl --fail --show-error --silent --retry 5 --retry-delay 2 "$DEPLOYMENT_URL/health"
+
+      - name: Smoke test MCP endpoint
+        if: ${{ steps.deploy.outputs.deployment-url != '' }}
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          response="$(curl --fail --show-error --silent --retry 5 --retry-delay 2 \
+            --header 'Accept: application/json, text/event-stream' \
+            --header 'Content-Type: application/json' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+            "$DEPLOYMENT_URL/mcp")"
+          grep -F '"name":"nexo_status"' <<< "$response"

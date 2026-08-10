@@ -117,6 +117,15 @@ FREE preferred -> FREE alternate -> cheap paid -> request authorization.
 ## MCP implementation notes
 The existing `nexocms` repo uses `@modelcontextprotocol/sdk`, Express, StreamableHTTPServerTransport and Supabase. The current MCP is therefore already conceptually compatible with migration to a stateless Streamable HTTP host, although the Express-specific server layer must be adapted for Workers.
 
+### Cloudflare POC validation (2026-08-10)
+- POC source lives in `experiments/cloudflare-mcp` on `poc/cloudflare-mcp-core`.
+- Keep `agents` pinned to `0.20.0` with `@modelcontextprotocol/server` `2.0.0-beta.5`; `agents@0.20.1` requires the stable `2.0.0` server package and breaks this documented stateless handler combination during npm resolution.
+- `@cloudflare/workers-types` must use a published release (`^5.20260810.1` at validation time); the previous `^4.20260731.0` did not exist in npm.
+- The Worker requires `compatibility_flags: ["nodejs_compat"]` because the Agents stateless handler imports `node:async_hooks`.
+- Local verification passed: `npm run typecheck`, `wrangler deploy --dry-run`, `GET /health`, MCP `initialize`, `tools/list`, and `tools/call` for `nexo_status`.
+- CI now uses the generated lockfile via `npm ci` and verifies `nexo_status` from the deployed `/mcp` endpoint after `/health`.
+- Production deployment remains blocked only on securely configured `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; never request or store them in chat/repository.
+
 ## Continuation checklist
 When resuming work:
 1. Read this skill first.
